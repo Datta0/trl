@@ -1697,7 +1697,7 @@ def selective_log_softmax(logits, index):
 
 
 def print_prompt_completions_sample(
-    prompts: list[str], completions: list[str], rewards: dict[str, list[float]], step: int, num_samples: int = None
+    prompts: list[str], completions: list[str], rewards: dict[str, list[float]], ground_truth: list[str], step: int, num_samples: int = None
 ) -> None:
     """
     Print out a sample of model completions to the console with multiple reward metrics.
@@ -1741,6 +1741,7 @@ def print_prompt_completions_sample(
     # Add columns
     table.add_column("Prompt", style="bright_yellow")
     table.add_column("Completion", style="bright_green")
+    table.add_column("Ground Truth", style="bright_green")
     for reward_name in rewards.keys():
         table.add_column(reward_name, style="bold cyan", justify="right")
 
@@ -1756,11 +1757,12 @@ def print_prompt_completions_sample(
         indices = random.sample(range(len(prompts)), num_samples)
         prompts = [prompts[i] for i in indices]
         completions = [completions[i] for i in indices]
+        ground_truth = [ground_truth[i] for i in indices]
         rewards = {key: [val[i] for i in indices] for key, val in rewards.items()}
 
     for i in range(len(prompts)):
         reward_values = [f"{rewards[key][i]:.2f}" for key in rewards.keys()]  # 2 decimals
-        table.add_row(Text(prompts[i]), Text(completions[i]), *reward_values)
+        table.add_row(Text(prompts[i]), Text(completions[i]),Text(ground_truth[i]) ,  *reward_values)
         table.add_section()  # Adds a separator between rows
 
     panel = Panel(table, expand=False, title=f"Step {step}", border_style="bold white")

@@ -20,6 +20,7 @@ from collections.abc import Sized
 from contextlib import nullcontext
 from typing import Any, Callable, Optional, Union
 
+import json
 import datasets
 import torch
 import torch.utils.data
@@ -557,6 +558,7 @@ class GRPOTrainer(Trainer):
             "prompt": deque(maxlen=maxlen),
             "completion": deque(maxlen=maxlen),
             "rewards": defaultdict(lambda: deque(maxlen=maxlen)),
+            "reward_kwargs": deque(maxlen=maxlen), 
         }
 
         # Check if the effective batch size can be divided by the number of generations
@@ -1109,6 +1111,15 @@ class GRPOTrainer(Trainer):
         # Log prompt and completion texts
         self._textual_logs["prompt"].extend(gather_object(prompts_text))
         self._textual_logs["completion"].extend(gather_object(completions_text))
+        #self._textual_logs["reward_kwargs"].extend(gather_object(reward_kwargs))
+        # breakpoint()
+
+        rew_args = {}
+        for key, val in reward_kwargs.items():
+            rew_args[key] = val
+        # breakpoint()
+        self._textual_logs["reward_kwargs"].extend(json.dumps(rew_args)*len(prompts))
+
         for i, name in enumerate(reward_func_names):
             self._textual_logs["rewards"][name].extend(rewards_per_func[:, i].tolist())
 
@@ -1255,11 +1266,14 @@ class GRPOTrainer(Trainer):
         self._metrics[mode].clear()
 
         if self.accelerator.is_main_process and self.log_completions:
+            # breakpoint()
+            reward_kwargs = self._textual_logs.get("reward_kwargs", None)
             if is_rich_available():
                 print_prompt_completions_sample(
                     self._textual_logs["prompt"],
                     self._textual_logs["completion"],
                     self._textual_logs["rewards"],
+                    reward_kwargs,
                     self.state.global_step,
                     self.num_completions_to_print,
                 )
@@ -1271,6 +1285,7 @@ class GRPOTrainer(Trainer):
                     "step": [str(self.state.global_step)] * len(self._textual_logs["prompt"]),
                     "prompt": self._textual_logs["prompt"],
                     "completion": self._textual_logs["completion"],
+                    "ground_truth": reward_kwargs,
                     **self._textual_logs["rewards"],
                 }
                 df = pd.DataFrame(table)
